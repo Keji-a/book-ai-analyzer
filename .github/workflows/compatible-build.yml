@@ -1,0 +1,87 @@
+name: Compatible Android Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Setup Android SDK (稳定版本)
+      uses: android-actions/setup-android@v3
+      with:
+        api-level: 34
+        build-tools: 34.0.0
+        ndk: 25.2.9519653
+    
+    - name: Apply compatible configuration
+      run: |
+        echo "应用兼容性配置..."
+        # 使用兼容的Gradle版本
+        cp gradle/wrapper/gradle-wrapper-compatible.properties gradle/wrapper/gradle-wrapper.properties
+        
+        # 使用兼容的构建配置
+        cp build-compatible.gradle.kts build.gradle.kts
+        cp app/build-compatible.gradle.kts app/build.gradle.kts
+        
+        echo "配置已更新为兼容版本"
+        echo "AGP: 8.3.0, Gradle: 8.4, Compose BOM: 2023.08.00"
+    
+    - name: Gradle Caching
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-compatible-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-compatible-
+    
+    - name: Make gradlew executable
+      run: chmod +x ./gradlew
+    
+    - name: Build with Gradle
+      run: ./gradlew assembleDebug --stacktrace --info --no-daemon
+    
+    - name: Verify APK
+      run: |
+        if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+          echo "✅ 兼容性构建成功！"
+          echo "APK大小: $(ls -lh app/build/outputs/apk/debug/app-debug.apk | awk '{print \$5}')"
+          echo ""
+          echo "技术意义:"
+          echo "1. ✅ 代码可以适应GitHub Actions环境"
+          echo "2. ✅ 使用稳定版本组合能成功构建"
+          echo "3. ✅ 可以逐步添加更多功能"
+        else
+          echo "❌ 构建失败"
+          echo "需要进一步分析错误"
+          exit 1
+        fi
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: compatible-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
+    
+    - name: Create Release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: app/build/outputs/apk/debug/app-debug.apk
+        generate_release_notes: true
+        tag_name: compatible-v1.0.${{ github.run_number }}
+        name: Compatible Release v1.0.${{ github.run_number }}
