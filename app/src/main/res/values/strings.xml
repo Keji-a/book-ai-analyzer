@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Book AI Analyzer</string>
+    <string name="select_file">选择文件</string>
+    <string name="analyze">AI分析</string>
+    <string name="loading">加载中...</string>
+    <string name="error">错误</string>
+    <string name="retry">重试</string>
+    <string name="file_content">文件内容</string>
+    <string name="analysis_result">分析结果</string>
+    <string name="no_file_selected">未选择文件</string>
+    <string name="select_txt_file">选择TXT文件</string>
+    <string name="analyzing">正在分析...</string>
+    <string name="analysis_complete">分析完成</string>
+    <string name="failed_to_read_file">读取文件失败</string>
+    <string name="failed_to_analyze">分析失败</string>
+</resources>
