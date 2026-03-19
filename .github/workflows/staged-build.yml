@@ -1,0 +1,147 @@
+name: Staged Android Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: '构建阶段'
+        required: true
+        default: 'stage1'
+        type: choice
+        options:
+        - stage1
+        - stage2
+        - stage3
+        - stage4
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        api-level: 34
+        build-tools: 34.0.0
+    
+    - name: Gradle Caching
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+    
+    - name: Prepare staged build
+      run: |
+        echo "构建阶段: ${{ github.event.inputs.stage }}"
+        
+        # 备份原配置
+        cp app/build.gradle.kts app/build.gradle.kts.backup
+        
+        # 根据阶段修改配置
+        case "${{ github.event.inputs.stage }}" in
+          stage1)
+            echo "阶段1: 最简版本 (无Compose, 无网络)"
+            # 创建最简配置
+            cat > app/build.gradle.kts << 'EOF'
+            plugins {
+                id("com.android.application")
+                id("org.jetbrains.kotlin.android")
+            }
+            
+            android {
+                namespace = "com.keji.bookaianalyzer"
+                compileSdk = 34
+            
+                defaultConfig {
+                    applicationId = "com.keji.bookaianalyzer"
+                    minSdk = 21
+                    targetSdk = 34
+                    versionCode = 1
+                    versionName = "1.0.0"
+                }
+            
+                buildTypes {
+                    getByName("debug") {
+                        isMinifyEnabled = false
+                    }
+                }
+                
+                compileOptions {
+                    sourceCompatibility = JavaVersion.VERSION_1_8
+                    targetCompatibility = JavaVersion.VERSION_1_8
+                }
+                
+                kotlinOptions {
+                    jvmTarget = "1.8"
+                }
+            }
+            
+            dependencies {
+                implementation("androidx.core:core-ktx:1.9.0")
+                implementation("androidx.appcompat:appcompat:1.6.1")
+                implementation("com.google.android.material:material:1.9.0")
+            }
+            EOF
+            ;;
+            
+          stage2)
+            echo "阶段2: 添加Compose支持"
+            # 使用简化Compose配置
+            ;;
+            
+          stage3)
+            echo "阶段3: 添加文件功能"
+            # 添加文件选择器
+            ;;
+            
+          stage4)
+            echo "阶段4: 完整版本 (包含AI功能)"
+            # 使用原配置
+            cp app/build.gradle.kts.backup app/build.gradle.kts
+            ;;
+        esac
+        
+        echo "配置准备完成"
+    
+    - name: Build APK
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --stacktrace --info
+    
+    - name: Verify APK
+      run: |
+        if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+          echo "✅ 阶段 ${{ github.event.inputs.stage }} 构建成功！"
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
+        else
+          echo "❌ 构建失败"
+          exit 1
+        fi
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-stage-${{ github.event.inputs.stage }}
+        path: app/build/outputs/apk/debug/app-debug.apk
+    
+    - name: Restore original config
+      if: always()
+      run: |
+        if [ -f "app/build.gradle.kts.backup" ]; then
+          cp app/build.gradle.kts.backup app/build.gradle.kts
+          echo "配置已恢复"
+        fi
