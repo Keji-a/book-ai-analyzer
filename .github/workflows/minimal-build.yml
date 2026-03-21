@@ -1,0 +1,44 @@
+name: Simple Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --info 2>&1 | tee /tmp/build.log
+
+      - name: Check Build Output
+        run: |
+          echo "=== Build Directory ==="
+          ls -la app/build/ 2>/dev/null || echo "No build directory"
+          echo ""
+          echo "=== APK Files ==="
+          find . -name "*.apk" -type f 2>/dev/null
+          echo ""
+          echo "=== Debug APK ==="
+          ls -la app/build/outputs/apk/debug/ 2>/dev/null || echo "No debug APK"
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/*.apk
