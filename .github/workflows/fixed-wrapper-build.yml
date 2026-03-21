@@ -1,0 +1,41 @@
+name: Fixed Wrapper Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build APK with Wrapper
+        env:
+          JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.18-8/x64
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
+
+      - name: Check APK
+        run: |
+          echo "=== Looking for APKs ==="
+          find . -name "*.apk" -type f
+          ls -la app/build/outputs/apk/debug/ 2>/dev/null || echo "No debug APK directory"
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-ai-analyzer-debug
+          path: app/build/outputs/apk/debug/*.apk
