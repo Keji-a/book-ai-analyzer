@@ -1,0 +1,73 @@
+name: Android CI/CD (Fixed)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # 2. 设置JDK 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # 3. 设置Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # 4. 下载并安装Gradle（不使用wrapper）
+      - name: Setup Gradle
+        run: |
+          echo "📥 下载Gradle 8.7..."
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip -O /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /opt
+          export PATH=/opt/gradle-8.7/bin:$PATH
+          echo "✅ Gradle版本: $(gradle --version | head -1)"
+          gradle --version
+
+      # 5. 确保gradlew可执行
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # 6. 使用系统Gradle构建
+      - name: Build Debug APK
+        run: |
+          export PATH=/opt/gradle-8.7/bin:$PATH
+          echo "🔨 开始构建..."
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
+        continue-on-error: true
+
+      # 7. 列出构建输出
+      - name: List build outputs
+        run: |
+          echo "📁 构建输出目录："
+          find app/build -name "*.apk" 2>/dev/null || echo "未找到APK"
+          ls -la app/build/outputs/apk/debug/ 2>/dev/null || echo "APK目录不存在"
+
+      # 8. 验证并上传APK
+      - name: Verify and Upload APK
+        run: |
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          if [ -f "$APK_PATH" ]; then
+            echo "✅ APK构建成功！"
+            ls -lh "$APK_PATH"
+          else
+            echo "❌ APK未生成，尝试调试构建..."
+            export PATH=/opt/gradle-8.7/bin:$PATH
+            ./gradlew assembleDebug --no-daemon --debug 2>&1 | tail -100
+            exit 1
+          fi
