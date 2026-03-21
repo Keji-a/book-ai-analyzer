@@ -1,4 +1,4 @@
-name: Final Android Build
+name: Final Build
 
 on:
   workflow_dispatch:
@@ -20,19 +20,19 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build with Gradle Wrapper
+      - name: Build
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
+          ./gradlew assembleDebug --no-daemon 2>&1 | tee /tmp/build.log
 
-      - name: Check APK
-        run: |
-          find . -name "*.apk" -type f
-          ls -la app/build/outputs/apk/debug/ 2>/dev/null || echo "No APK dir"
+      - name: Upload Build Log
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: /tmp/build.log
 
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/
