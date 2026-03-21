@@ -116,7 +116,7 @@ class MainViewModel : ViewModel() {
                 }
                 
                 // 使用固定的API Key（实际应用中应该让用户配置）
-                val apiKey = "sk-your-deepseek-api-key-here" // 这里需要替换为真实API Key
+                val apiKey = "sk-975533890f5f4d208cb2f46315e33fe9"
                 
                 val prompt = """
                     请为以下书籍内容生成详细的分析：
