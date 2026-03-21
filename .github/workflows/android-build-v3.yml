@@ -1,0 +1,75 @@
+name: Android Build (No Wrapper)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 设置JDK 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # 3. 安装Android SDK
+      - name: Setup Android SDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y android-sdk
+          
+      # 4. 下载并安装Gradle 8.7（不用wrapper）
+      - name: Download and install Gradle
+        run: |
+          cd /tmp
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle-8.7-bin.zip -d /opt
+          sudo ln -sf /opt/gradle-8.7/bin/gradle /usr/local/bin/gradle
+          gradle --version
+
+      # 5. 设置环境变量
+      - name: Setup environment
+        run: |
+          echo "ANDROID_HOME=/usr/lib/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=/usr/lib/android-sdk" >> $GITHUB_ENV
+          echo "JAVA_HOME=/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.18-8/x64" >> $GITHUB_ENV
+
+      # 6. 接受Android SDK许可证
+      - name: Accept Android licenses
+        run: |
+          yes | sudo $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+          yes | sudo $ANDROID_HOME/tools/bin/sdkmanager --licenses 2>/dev/null || true
+
+      # 7. 用系统Gradle构建（不用gradlew）
+      - name: Build with system Gradle
+        run: |
+          cd $GITHUB_WORKSPACE
+          gradle clean assembleDebug --no-daemon --stacktrace 2>&1
+
+      # 8. 验证APK
+      - name: Verify APK
+        run: |
+          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "✅ APK构建成功！"
+            ls -lh app/build/outputs/apk/debug/app-debug.apk
+          else
+            echo "❌ APK未生成"
+            ls -la app/build/outputs/ 2>/dev/null || echo "build目录不存在"
+            exit 1
+          fi
+
+      # 9. 上传APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
