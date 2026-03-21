@@ -1,4 +1,4 @@
-name: Debug Build
+name: Debug Build v2
 
 on:
   workflow_dispatch:
@@ -20,31 +20,32 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Debug Environment
-        run: |
-          echo "=== Java Version ==="
-          java -version
-          echo ""
-          echo "=== JAVA_HOME ==="
-          echo $JAVA_HOME
-          echo ""
-          echo "=== Android SDK ==="
-          echo $ANDROID_HOME
-          ls -la $ANDROID_HOME 2>/dev/null || echo "SDK not found at ANDROID_HOME"
-          echo ""
-          echo "=== Gradle Version ==="
-          ./gradlew --version 2>&1 || echo "Gradle wrapper failed"
-
-      - name: Build with full output
-        env:
-          JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.18-8/x64
+      - name: Build with Gradle
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --info 2>&1 | tee /tmp/build.log
-          
+          ./gradlew assembleDebug --no-daemon 2>&1 | tee /tmp/build.log
+          echo "=== Gradle Exit Code: $? ===" >> /tmp/build.log
+
       - name: Upload Build Log
-        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
           path: /tmp/build.log
+
+      - name: Check Build Output
+        run: |
+          echo "=== Listing all files ==="
+          find . -type f -name "*.apk" 2>/dev/null || echo "No APK found"
+          echo ""
+          echo "=== app/build directory ==="
+          ls -laR app/build/ 2>/dev/null || echo "No build directory"
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/**/*.apk
