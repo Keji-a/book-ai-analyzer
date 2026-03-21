@@ -1,0 +1,39 @@
+name: Build and Upload All
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Gradle
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y gradle -qq
+
+      - name: Build APK
+        run: |
+          gradle assembleDebug --no-daemon 2>&1
+          find . -name "*.apk" -type f
+
+      - name: List Build Outputs
+        run: |
+          ls -la app/build/outputs/ 2>/dev/null || echo "No outputs dir"
+          find . -name "*.apk" 2>/dev/null
+
+      - name: Upload Build Directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-outputs
+          path: app/build/outputs/
