@@ -109,7 +109,8 @@ fun BookAnalyzerApp() {
                         onClick = {
                             // 这里应该打开文件选择器
                             // 简化版本：直接加载示例文件
-                            viewModel.loadFileContent(LocalContext.current, "")
+                            val context = androidx.compose.ui.platform.LocalContext.current
+                            viewModel.loadFileContent(context, "")
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
